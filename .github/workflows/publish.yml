@@ -24,6 +24,10 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
+      # Config 自检需要这个可选 peer（本地由 DSH profile 提供，CI 里装上才能真正测到）
+      - name: 准备可选依赖
+        run: npm install --no-save --no-package-lock @deepseek-ai/schemastery@^3.18.1
+
       - name: 自检
         run: node scripts/check.mjs && node scripts/host-check.mjs
 

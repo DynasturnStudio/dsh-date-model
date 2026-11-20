@@ -2,3 +2,8 @@ node_modules/
 *.tgz
 *.log
 .DS_Store
+
+# 凭据/令牌文件永不入库
+*git-cred*
+*.cred
+*.token

@@ -11,8 +11,10 @@ const ok = (cond, message) => { if (!cond) problems.push(message) }
 ok(Array.isArray(inject) && inject.includes('systemPrompt'), 'inject 缺 systemPrompt')
 ok(!inject.includes('commands'), '不应该再注册会话命令（会在对话里留行）')
 
-ok(Boolean(Config), 'Config 没加载到 schemastery（找不到 @deepseek-ai/schemastery）')
-if (Config) {
+// Config 依赖 @deepseek-ai/schemastery；在 DSH 之外的机器（比如 CI）上这个包不一定在，
+// 那种情况下跳过这项、不让自检失败——插件本身会降级成「没有配置」，照常加载。
+const hasSchemaKit = Boolean(Config)
+if (hasSchemaKit) {
   const parsed = Config({})
   ok(parsed && parsed.identity && typeof parsed.identity.get === 'function', 'Config 里 identity 不是 volatile 引用')
   ok(parsed.identity.get() === '', `默认名字应为空，实际：${parsed.identity.get()}`)
@@ -71,4 +73,4 @@ if (problems.length) {
   for (const problem of problems) console.log(`  - ${problem}`)
   process.exit(1)
 }
-console.log('PASS  Host 半边：Config(volatile) + systemPrompt section 正常（<id> → 「你的名字是 <id>」，无会话命令）')
+console.log(`PASS  Host 半边：systemPrompt section 正常（<id> → 「你的名字是 <id>」，无会话命令）${hasSchemaKit ? ' + Config(volatile)' : '；Config 项跳过（本机没装 @deepseek-ai/schemastery）'}`)
