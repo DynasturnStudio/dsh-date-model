@@ -1,0 +1,33 @@
+name: publish
+
+# 打 tag（如 v0.1.0）时自动发布到 npm，绕开本地连不上 registry.npmjs.org 的问题。
+# 需要在仓库 Settings → Secrets and variables → Actions 里添加 NPM_TOKEN
+# （npmjs.com → Access Tokens → Generate New Token，选 Automation 类型）。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: 自检
+        run: node scripts/check.mjs && node scripts/host-check.mjs
+
+      - name: 发布
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
