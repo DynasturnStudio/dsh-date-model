@@ -765,6 +765,13 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const isDirty = () => state.y !== applied.y || state.m !== applied.m || state.d !== applied.d
+        || state.major !== applied.major || state.minor !== applied.minor || state.tier !== applied.tier
+      const cancel = () => {
+        if (isDirty()) toast('改动未应用：按 ✓ 保存')
+        closePopover()
+      }
+
       const actions = {
         setTier: (tier) => { state.tier = tier; repaint() },
         toggleReveal: () => {
@@ -788,7 +795,7 @@ window.__ModuleLoader__.load({
           repaint()
         },
         pick: (d) => { state.d = d; repaint() },
-        cancel: () => closePopover(),
+        cancel,
         apply: () => {
           const next = { y: state.y, m: state.m, d: state.d, major: state.major, minor: state.minor, tier: state.tier }
           write(next)
@@ -802,12 +809,12 @@ window.__ModuleLoader__.load({
         const target = event.target
         if (node.contains && node.contains(target)) return
         if (target === anchorEl || (anchorEl.contains && anchorEl.contains(target))) return
-        closePopover()
+        cancel()
       }
       const onKeyDown = (event) => {
         if (event.key !== 'Escape') return
         if (event.stopPropagation) event.stopPropagation()
-        closePopover()
+        cancel()
       }
       const onResize = () => {
         const rect = anchorEl.getBoundingClientRect()

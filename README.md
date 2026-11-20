@@ -148,6 +148,11 @@ After installation, the chip appears in the composer of every session in that pr
 
 Remove the bundle row (plugin manager → disable/remove, or drop it from the profile's dependencies and `dsh.profile.bundles`). The plugin restores the hidden real model seat when it is disposed, and the injected system-prompt section disappears with it.
 
+## Two gotchas
+
+1. **Only `✓` applies the name.** Scrolling the wheels, switching the weather tier and picking a date are a preview — the chip, the saved selection and the injected prompt name change only after you press `✓`. Closing the panel with unsaved changes now shows "改动未应用：按 ✓ 保存" (not applied, press ✓ to save).
+2. **After a fresh install or a restart, the first write may not land.** The settings namespace can be unavailable for the first moment of a page load; the plugin retries for about 30 seconds, and if it still fails it shows "名字已保存，但没能写进提示词" (the name was saved, but it could not reach the prompt). Fix: disable and re-enable the plugin row once, or restart Harness — the UI itself keeps working. Verified path: 0.1.2 and later retry with backoff; 0.1.3 adds the unsaved-changes warning.
+
 ## Compatibility and known risks
 
 - Requires DSH `>= 0.2.2-rc.5 < 0.3.0`. The plugin uses internal APIs: the `conversation.input.right` slot, `ctx.systemPrompt.section`, `ctx.remote.settings`, and `.volatile()` config fields. A DSH upgrade may break it — run the self-checks after upgrading.
