@@ -1,134 +1,181 @@
-# dsh-date-model · 按日期选模型
+# dsh-date-model
 
-一个 DSH Web 端的趣味插件：用「无限数字滚轮 + 月历」拼出一个假模型名，并把这个名字写进系统提示词 —— 于是问它「你是谁」，它就这样回答。
+<p align="center">
+  <a href="README.md">English</a> | <a href="README.zh.md">中文</a>
+</p>
 
-> ⚠️ **这不是真的模型选择器**：`v4.1` 就是两个随便滚的数字，天气是档位，日期是编的。它不改变真实模型、不改推理参数、不影响计费。想换真模型请用 `/model`。
+A playful composer widget for the DeepSeek Harness Web UI. Pick two numbers, a "weather" tier and a date, and it builds a fake model name such as `deepseek-v4.1-fog-1217` — then writes that name into the system prompt, so the assistant answers "who are you?" with it.
 
-| 项目 | 值 |
+> ⚠️ **Not a real model selector.** `v4.1` is just two numbers you rolled, the weather is a cosmetic tier, and the date is invented. It never changes the real model, its parameters, the context window, or billing. Use `/model` (or the eye toggle described below) for the real thing.
+
+| | |
 | --- | --- |
-| DSH | `>= 0.2.2-rc.5`（本仓库在该版本上验证） |
-| 平台 | Web（`dsh.client.platform: web`） |
-| 名字 | `dsh-date-model`（Host 行 id：`date-model`） |
-| 许可 | MIT |
+| DSH | `>= 0.2.2-rc.5 < 0.3.0` (verified on `0.2.2-rc.5`) |
+| Platform | Web client (`dsh.client.platform: web`) |
+| Package | `dsh-date-model` · Host row id `date-model` |
+| License | [MIT](./LICENSE) |
 
-## 长这样
+## Screenshots
 
-![面板（flash 主题）](./docs/flash.png)
+![Panel with the flash theme](docs/flash.png)
 
-![面板（pro 主题）](./docs/pro.png)
+![Panel with the pro theme](docs/pro.png)
 
-> 两张图都是当前版本：右上角是「小眼睛」（显隐真实模型选择器），数字滚轮可以一直往下滚。
+Both screenshots are from the current version: the eye button and the unbounded wheels are the ones described below.
 
-## 命名规则
+## Features
+
+### 1. A model seat in the composer
+
+The plugin registers into the composer's model seat slot (`conversation.input.right`). It shows a chip with the currently applied fake name, for example `deepseek-v4.1-flash-1107`.
+
+- **Click the chip** → the panel opens above it.
+- **The real model selector is hidden** while the chip is present, so the fake seat is the only model control you see. The eye toggle (feature 6) brings it back on demand.
+- The chip keeps its own accent per weather tier, and its `aria-label` is the fake name for screen readers.
+
+### 2. Two unbounded number wheels
+
+The panel's top row is `v` + wheel + `.` + wheel.
+
+- **No 24/60 limit.** The wheels are not a clock: any non-negative integer works, and there is no upper bound. Scroll down for a while and you will pass `23`, `59`, `477`, `1000`…
+- Each wheel renders a **240-value window** and silently re-centers when you approach its edge, so endless scrolling stays smooth.
+- Scroll snapping, a highlighted center band and gradient fades make it feel like a native picker; clicking a number jumps straight to it.
+- The values are stored as plain integers (0, 1, 2, …), not as a time of day.
+
+### 3. Calendar
+
+- `«` / `»` change the year, `‹` / `›` change the month (years 1970–2100).
+- Click any day to select it; today is marked separately from the current selection.
+- The selected month/day become the last four digits of the name: `MMDD`.
+
+### 4. Seven weather tiers (icon-only)
+
+The top strip is a tier selector. It shows **icons only, no text**; each button carries its name in `title` and `aria-label`.
+
+| Icon | Tier | Meaning |
+| --- | --- | --- |
+| ⚡ | `flash` | thunderstorm (雷阵雨) |
+| 🌤 | `pro` | weather chart — isobars and a front line (prognostic chart) |
+| 🌧 | `rain` | rain |
+| ☁️ | `cloudy` | clouds |
+| ❄️ | `snow` | snow |
+| 🌫 | `fog` | fog |
+| 🌙 | `clear` | clear night |
+
+### 5. Themes that recolor the whole panel
+
+Selecting a tier repaints the entire panel: accent color, control highlights, and a background illustration drawn as an inline SVG (rain streaks and a lightning bolt for `flash`, concentric isobars plus a front with triangles for `pro`, and so on). The panel follows the app's light/dark theme automatically.
+
+### 6. The eye toggle — show/hide the real model selector
+
+The eye button sits in the panel header, left of the close button.
+
+- **Default: hidden.** The real model seat is hidden (display only, with a marker attribute so it can be restored) so the composer shows a single model control.
+- **Click the eye** → the real selector appears next to the chip; click again → it hides again.
+- The state is remembered in `localStorage` (`dsh-date-model/reveal`) and survives reloads.
+- Nothing is destroyed: disabling or uninstalling the plugin restores the real seat.
+
+This is the intended way to compare the fake name against the real model, or to switch the real model through the UI without uninstalling.
+
+### 7. Hover tooltip shows the real model name
+
+Hovering the chip shows a native tooltip with the **currently active real model** (for example `deepseek-account/deepseek-flash`), not the fake name.
+
+- It reads the text of the real model seat, which is the value the app itself displays.
+- It stays live: switching the model with `/model` updates the tooltip within a moment (the plugin watches that row's DOM and also polls every 2.5 s as a fallback).
+- If the seat text cannot be read, it falls back to the profile's configured default model, and finally to the fake name.
+- The accessible name (`aria-label`) stays the fake name; only the hover tooltip shows the real model.
+
+### 8. The name goes into the system prompt
+
+Pressing `✓` in the panel:
+
+1. saves the selection to `localStorage`;
+2. writes the name into the plugin's **volatile config** (`identity`), which is silent — no chat row, no user message, nothing appended to the transcript;
+3. shows a small toast with the new name.
+
+The Host half registers a system-prompt section (`date-model-identity`, order `9500`, after the tool sections) whose `text` is a function, so it re-reads the config on every request:
+
+> Your name is `deepseek-v4.1-fog-1217`. When the user asks who you are or what model you are, answer with exactly that name.
+
+Details:
+
+- the value must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`, otherwise it never reaches the prompt;
+- config writes go to the profile's `cordis.patch.yml` (`date-model` row), so the name survives a restart;
+- a failed write logs a `console.warn` and leaves the UI working (only the prompt name does not update);
+- **scope: the whole profile** — the section is registered by the plugin, so every session and subagent in this profile answers with that name, not only the session where you clicked `✓`.
+
+### 9. Persistence
+
+- Selection (year/month/day, both numbers, tier) → `localStorage` key `dsh-date-model/selection`.
+- Eye state → `localStorage` key `dsh-date-model/reveal`.
+- Injected name → the plugin's config in the profile.
+
+## Name format
 
 ```
 deepseek-v  4  .  1  -  flash  -  1107
             ↑     ↑     ↑        ↑
-        第一个数字 第二个  天气    月日（点月历选）
+      first number  second  tier   month/day
 ```
 
-- 两个数字**无限**：从 0 起步、上不封顶，滚到底会自动换窗口，能一直滚到 `477`、`1000`；
-- 末尾四位是月日，年份只用来翻日历；
-- 名字形如 `deepseek-v<数字>.<数字>-<天气>-<MMDD>`。
+- `deepseek-v<major>.<minor>-<tier>-<MMDD>`;
+- the year is used only to navigate the calendar and never appears in the name;
+- both numbers are unbounded (0, 1, 2, …).
 
-### 档位 = 天气（玩梗）
+## Install
 
-七个图标就是一个档位选择器，只有图标没有文字（`title` / `aria-label` 里有名字）：
+**Through the plugin manager** (recommended): install the bundle from npm or a local directory, then enable the `dsh-date-model` row.
 
-| 图标 | 档位 | 天气 |
-| --- | --- | --- |
-| ⚡ | `flash` | 雷阵雨 |
-| 🌤 | `pro` | 气象预报图（等压线 + 锋面，prognostic chart） |
-| 🌧 | `rain` | 雨 |
-| ☁️ | `cloudy` | 多云 |
-| ❄️ | `snow` | 雪 |
-| 🌫 | `fog` | 雾 |
-| 🌙 | `clear` | 晴（月夜） |
+**With the CLI:**
 
-选择天气后，整块面板的配色和背景插画会跟着换。
-
-## 界面
-
-- **两个滚轮**：snap 吸附、中间高亮带、上下渐隐；一窗只渲染 240 个数字，滚到边缘整盘平移换窗，所以滚多久都不卡；
-- **月历**：左右换月、点年份数字换年、点日期；
-- **底部**：拼出来的名字 + `✕` / `✓`；
-- **右上角小眼睛**：随时显隐真实的模型选择器（默认藏起来，点一下露出来；状态记在 `localStorage`，卸载插件会还原）；
-- **鼠标浮在座椅上**：原生 tooltip 显示**真实模型名**（读真实座位上的当前文字，`/model` 切模型后会跟着变；读不到才退回配置里的默认模型）。
-
-## 身份注入：问「你是谁」就报这个名字
-
-按 `✓` 之后，浏览器半边把名字写进本插件的 **volatile 配置**，Host 半边读出来拼进系统提示词：
-
-```
-client.js ── ctx.remote.settings.update('date-model', { identity }) ──▶ profile 的 cordis.patch.yml
-                                                                   │
-                              ctx.systemPrompt.section()（order 9500，排在最后）
-                                                                   ▼
-                           系统提示词里多一段：你的名字是 deepseek-v4.1-fog-1217
+```bash
+dsh plugin add dsh-date-model          # from npm
+dsh plugin add <path-to-checkout>      # from a local directory
 ```
 
-- **不走会话命令**：命令会在对话里渲染一行 `>_ date-model-name · …`，太吵；配置写入是静默的，聊天记录里什么都不留；
-- section 的 `text` 是**函数**，每次组装请求时现读 volatile 字段，所以点完 ✓ 下一句就生效，也不用重启插件；
-- 排位 `9500` 在工具说明之后、结构化输出之前，尽量贴近本轮对话；
-- 名字会进提示词，Host 侧再过一道白名单 `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`，脏值直接不进提示词；
-- **影响范围是整个 profile**：之后开的新会话、子 agent 都会用这个名字（见「已知取舍」）；
-- 写入落在 `~/.dsh/profiles/<profile>/cordis.patch.yml` 的 `date-model` 行上，重启后名字还在。写失败（比如命名空间没挂载）时会在 console 打 `warn`，名字不生效但界面照常。
-
-## 安装
-
-**方式一：插件管理**（推荐）——把本包打成 tarball（`npm pack`）或指向仓库，在「插件」页安装并启用 `dsh-date-model`。
-
-**方式二：手动**
+**Manually** — add the package to a profile and to its bundle list, then restart Harness:
 
 ```bash
 cd ~/.dsh/profiles/<profile>
-pnpm add -D dsh-date-model@<版本或本地路径>
+pnpm add -D dsh-date-model
+# add "dsh-date-model" to dsh.profile.bundles in package.json
 ```
 
-然后在 profile 的 `package.json` 里把 `"dsh-date-model"` 加进 `dsh.profile.bundles`，重启 Harness（或在插件管理里启用该行）。
+After installation, the chip appears in the composer of every session in that profile.
 
-## 卸载
+## Uninstall
 
-插件管理里停用 / 移除 `dsh-date-model`；或从 profile 的依赖和 `dsh.profile.bundles` 里删掉后重装依赖。真实模型选择器会自动还原。
+Remove the bundle row (plugin manager → disable/remove, or drop it from the profile's dependencies and `dsh.profile.bundles`). The plugin restores the hidden real model seat when it is disposed, and the injected system-prompt section disappears with it.
 
-## 已知取舍与风险
+## Compatibility and known risks
 
-- **藏真实模型座位是 DOM 操作**：没有官方 API，只能按「同一行里、有文字且有按钮的兄弟节点」判定再 `display:none`，并打 `data-dsh-date-model-hidden` 标记以便还原。DSH 的 composer 结构一改就可能藏错东西；
-- **hover 提示同样依赖 DOM**：从真实座位的 `title` / `aria-label` / 文本里挑最短的「像模型名」的那条，座位结构一变可能读不到（会退回配置里的默认模型或假名）；
-- 依赖 `conversation.input.right` 槽位、`ctx.systemPrompt.section`、`ctx.remote.settings`、`.volatile()` 配置 —— 都是 DSH 内部接口，**升级 DSH 前请先跑自检**；
-- 名字注入是 **profile 级**的，暂时没有按会话 / 按 agent 收窄（`AssembleContext` 只给 `scope`，拿不到稳定的会话标识）；
-- 本插件以 `link:` 方式安装时，裸包名 `@deepseek-ai/schemastery` 解析不到，`index.js` 会按 `DSH_PROFILE_DIR` / `~/.dsh/profiles/*` 兜底；正常 npm 安装时走裸包名解析；
-- 每次按 `✓` / 页面挂载都会写一次 profile 配置（同值会去重），不喜欢配置文件被动的话请别装；
-- 名字是编的，别当真；公开场合请勿用它冒充真实模型。
+- Requires DSH `>= 0.2.2-rc.5 < 0.3.0`. The plugin uses internal APIs: the `conversation.input.right` slot, `ctx.systemPrompt.section`, `ctx.remote.settings`, and `.volatile()` config fields. A DSH upgrade may break it — run the self-checks after upgrading.
+- **Hiding the real model seat is DOM surgery.** There is no public API for it, so the plugin locates the seat by structure (a sibling in the composer row that has text and a button) and hides it with `display: none`, marking it with `data-dsh-date-model-hidden` so it can be restored. A composer layout change can make it hide the wrong element; in that case remove the plugin.
+- **The hover tooltip also depends on the DOM**: it reads the real seat's text. If the seat structure changes, the tooltip falls back to the configured default model.
+- **The injected name is profile-wide**, as described above. That is a deliberate simplification: the section API does not expose a stable per-session identifier to scope it.
+- Pressing `✓` or mounting the chip writes the profile config (same-value writes are skipped). If you do not want a plugin touching your profile config, do not install it.
+- The fake names can be confused with real models. They are not real; please do not use them to impersonate one.
 
-## 文件
+## Files and self-checks
 
-| 文件 | 作用 |
+| File | Purpose |
 | --- | --- |
-| `package.json` | `dsh.bundle.patch` + `dsh.client`（platform: web）+ `exports["./client"]` + `engines.dsh` |
-| `cordis.patch.yml` | 往 profile 插一行 Host 插件（id: `date-model`），浏览器半边靠它被发现 |
-| `index.js` | **Host 半边**：volatile `Config.identity` + `systemPrompt.section`（你的名字） |
-| `client.js` | 全部界面（原生 DOM 弹层挂 `document.body`）+ 把名字写进配置 + hover 读真实模型名 |
-| `docs/*.png` | 早期截图 |
-| `scripts/check.mjs` | 无浏览器自检：注册 / 无限数字盘 / 天气 / 小眼睛 / 身份推送 / hover 提示 |
-| `scripts/host-check.mjs` | Host 半边自检：Config(volatile) + section + 脏值过滤 |
+| `package.json` | `dsh.bundle.patch`, `dsh.client`, `exports["./client"]`, `engines.dsh` |
+| `cordis.patch.yml` | inserts the Host row (`id: date-model`) into the profile |
+| `index.js` | Host half: volatile `Config.identity` + the `systemPrompt.section` |
+| `client.js` | the whole UI (native DOM popover attached to `document.body`), config push, hover tooltip |
+| `docs/*.png` | screenshots |
+| `screenshots.json` | screenshots declared for plugin storefronts |
+| `scripts/check.mjs` | browser-less self-check: registration, wheels, calendar, tiers, eye toggle, identity push, hover tooltip |
+| `scripts/host-check.mjs` | Host self-check: Config (when available), section text, dirty-value filtering |
+| `.github/workflows/publish.yml` | on a tag: run both self-checks, then stage the package on npm |
 
 ```bash
 node --check client.js && node --check index.js
-npm run check:all
-# PASS  座椅 + 无限数字盘 + 日期 + 七种天气 + 小眼睛 + 身份推送 全部通过
-# PASS  Host 半边：Config(volatile) + systemPrompt section 正常（无会话命令）
+node scripts/check.mjs
+node scripts/host-check.mjs
 ```
-
-## English (short)
-
-A playful DSH web plugin: roll two unbounded numbers, pick a "weather" tier and a date, and it builds a fake model name (e.g. `deepseek-v4.1-fog-1217`). Pressing `✓` writes that name into the plugin's volatile config, and the Host half injects it into the system prompt, so the assistant answers "who are you?" with it.
-
-- **Not a real model selector.** It never touches inference parameters or billing; use `/model` for the real model.
-- Requires DSH `>= 0.2.2-rc.5`, web client. The real model seat is hidden with DOM surgery (no public API), so DSH UI changes may break it — run the self-checks after upgrading.
-- The injected name applies to the whole profile (all sessions and subagents), not only the current session.
-- Silent by design: config writes leave no trace in the conversation. Old `>_ date-model-name` lines are only from versions before 0.1.0.
-- MIT licensed. `npm run check:all` runs the Node-only self-checks.
 
 ## License
 
