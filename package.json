@@ -1,6 +1,6 @@
 {
   "name": "dsh-date-model",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "按日期 + 天气挑一个假模型名（无限数字滚轮 + 月历），并把选中的名字写进系统提示词：问「你是谁」就回答它。不是真的模型选择器。",
   "type": "module",
   "main": "index.js",

@@ -301,7 +301,7 @@ window.__ModuleLoader__.load({
       return result
     }
 
-    async function pushIdentity(name) {
+    async function pushIdentity(name, attempt = 0) {
       const ctx = pluginCtx
       if (!ctx || !ctx.remote || !ctx.remote.settings) return
       try {
@@ -328,15 +328,30 @@ window.__ModuleLoader__.load({
         if (!name || name === lastPushed) return
         const target = namespaces.find((item) => item && String(item.ns || '').includes('date-model'))
         if (!target || !target.ns) {
-          try { console.warn('[dsh-date-model] 找不到 date-model 配置命名空间：名字不会生效（Host 半边可能没加载）') } catch { /* ignore */ }
+          // settings 服务可能在页面刚加载时还没把这条 entry 登记进来 —— 退避重试几次
+          if (attempt < 6) {
+            window.setTimeout(() => { pushIdentity(name, attempt + 1) }, 1500 * (attempt + 1))
+            return
+          }
+          try { console.warn('[dsh-date-model] 找不到 date-model 配置命名空间：名字不会生效（Host 半边没加载或没重启）') } catch { /* ignore */ }
+          toast('名字已保存，但没能写进提示词')
           return
         }
         lastPushed = name
-        unwrap(await ctx.remote.settings.update(target.ns, { identity: name }, target.revision))
+        try {
+          unwrap(await ctx.remote.settings.update(target.ns, { identity: name }, target.revision))
+        } catch (conflict) {
+          // 修订号冲突时退化为无条件写入
+          unwrap(await ctx.remote.settings.update(target.ns, { identity: name }))
+        }
       } catch (error) {
-        // 写配置失败就当没写：只是名字不更新，界面不受影响
         lastPushed = ''
+        if (attempt < 3) {
+          window.setTimeout(() => { pushIdentity(name, attempt + 1) }, 1500 * (attempt + 1))
+          return
+        }
         try { console.warn('[dsh-date-model] 写入名字失败：', error) } catch { /* ignore */ }
+        toast('名字已保存，但没能写进提示词')
       }
     }
 

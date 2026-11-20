@@ -8,7 +8,7 @@
 //
 // 为什么 schemastery 要手动找：本插件是 `link:` 安装（profile/node_modules 里是 junction），
 // Node 默认按真实路径解析依赖，裸包名 @deepseek-ai/schemastery 从插件目录解析不到，
-// 所以这里按 DSH_PROFILE_DIR / DSH_HOME 找到 profile 的 node_modules 再 require。
+// 所以这里按 DSH_PROFILE_DIR / DSH_HOME / ~/.dsh/profiles/* 找到 profile 的 node_modules 再 require。
 
 import { createRequire } from 'node:module'
 import { readdirSync } from 'node:fs'
