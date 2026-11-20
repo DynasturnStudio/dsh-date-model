@@ -31,7 +31,8 @@ jobs:
       - name: 自检
         run: node scripts/check.mjs && node scripts/host-check.mjs
 
-      - name: 发布
-        run: npm publish
+      # npm 现在对"绕过 2FA 的 token 直接发布新包"做了限制：先 stage，再由维护者在 npm 侧批准。
+      - name: 发布（先 stage 到 npm，再由维护者批准）
+        run: npm stage publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
