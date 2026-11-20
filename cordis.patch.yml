@@ -1,0 +1,5 @@
+# 按日期选模型：插入一个 host 行。
+# Host 半边（index.js）负责把选中的名字写进系统提示词；client.js 也靠这一行被 client-modules 发现。
+- insert:
+    - id: date-model
+      name: dsh-date-model
