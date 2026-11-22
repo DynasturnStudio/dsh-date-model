@@ -341,8 +341,13 @@ window.__ModuleLoader__.load({
         try {
           unwrap(await ctx.remote.settings.update(target.ns, { identity: name }, target.revision))
         } catch (conflict) {
-          // 修订号冲突时退化为无条件写入
-          unwrap(await ctx.remote.settings.update(target.ns, { identity: name }))
+          // 修订号冲突：重新 describe 拿最新 revision 再写一次（settings/update 必须传满 3 个参数）
+          const fresh = unwrap(await ctx.remote.settings.describe())
+          const retry = fresh && Array.isArray(fresh.namespaces)
+            ? fresh.namespaces.find((item) => item && String(item.ns || '').includes('date-model'))
+            : null
+          if (!retry) throw conflict
+          unwrap(await ctx.remote.settings.update(retry.ns, { identity: name }, retry.revision))
         }
       } catch (error) {
         lastPushed = ''
